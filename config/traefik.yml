@@ -1,0 +1,49 @@
+http:
+  routers:
+    bifrost:
+      service: bifrost
+      entryPoints:
+        - websecure
+      rule: "Host(`bifrost.tobyvin.com`)"
+    pihole:
+      service: pihole
+      entryPoints:
+        - websecure
+      rule: "Host(`pihole.tobyvin.com`)"
+    portainer:
+      service: portainer
+      entryPoints:
+        - websecure
+      rule: "Host(`portainer.tobyvin.com`)"
+    viz:
+      service: viz
+      entryPoints:
+        - websecure
+      rule: "Host(`viz.tobyvin.com`)"
+    hathea:
+      service: hathea
+      entryPoints:
+        - websecure
+      rule: "Host(`foundry.tobyvin.com`) && PathPrefix(`/hathea`)"
+
+  services:
+    bifrost:
+      loadBalancer:
+        servers:
+          - url: "http://bifrost"
+    pihole:
+      loadBalancer:
+        servers:
+          - url: "http://pi.hole"
+    portainer:
+      loadBalancer:
+        servers:
+          - url: "http://portainer:9000"
+    viz:
+      loadBalancer:
+        servers:
+          - url: "http://heimdall.asgard:8080"
+    hathea:
+      loadBalancer:
+        servers:
+          - url: "http://hathea:30000"
