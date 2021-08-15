@@ -6,35 +6,30 @@ services:
     container_name: traefik
     env_file: .env
     command:
-      - --api=true
-      - --api.dashboard=true
+      - --api
+      - --api.dashboard
       ## providers
       - --providers.docker
       - --providers.docker.network=proxy
       - --providers.docker.exposedbydefault=false
       - --providers.docker.defaultrule=Host(`{{ index .Labels "com.docker.compose.service" }}.$DOMAIN`)
-      - --providers.file.directory=/etc/traefik
+      - --providers.file.directory=/data
       ## entrypoints
       - --entrypoints.web.address=:80
       - --entrypoints.web.http.redirections.entryPoint.to=websecure
       - --entrypoints.web.http.redirections.entryPoint.scheme=https
-      - --entrypoints.web.http.redirections.entrypoint.permanent=true
+      - --entrypoints.web.http.redirections.entrypoint.permanent
       - --entrypoints.websecure.address=:443
       - --entrypoints.websecure.http.middlewares=secured@docker
       - --entrypoints.websecure.http.tls.certResolver=letsencrypt
       ## certificatesresolvers
-      - --certificatesresolvers.letsencrypt.acme.httpchallenge=true
+      - --certificatesresolvers.letsencrypt.acme.httpchallenge
       - --certificatesresolvers.letsencrypt.acme.email=$EMAIL
       - --certificatesresolvers.letsencrypt.acme.storage=/data/acme.json
       - --certificatesresolvers.letsencrypt.acme.httpchallenge.entrypoint=web
-      ## debug
-      # - --log.level=DEBUG
-      # - --api.insecure=true
-      # - --certificatesresolvers.letsencrypt.acme.caserver=https://acme-staging-v02.api.letsencrypt.org/directory
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
-      - ./config:/etc/traefik
-      - nfs:/data
+      - data:/data
     ports:
       - 80:80
       - 443:443
@@ -88,7 +83,7 @@ services:
       - traefik.http.middlewares.auth.forwardauth.address=http://auth:4181
       - traefik.http.middlewares.auth.forwardauth.trustForwardHeader=true
       - traefik.http.middlewares.auth.forwardauth.authResponseHeaders=X-Forwarded-User
-    # Logout: https://auth.tobyvin.com/_oauth/logout
+    # Logout: https://auth.${DOMAIN}/_oauth/logout
 
   whoami:
     image: traefik/whoami
@@ -99,10 +94,11 @@ services:
 
 secrets:
   auth:
-    file: secrets/auth
+    external: true
+    name: traefik_auth
 
 volumes:
-  nfs:
+  data:
     driver: local
     driver_opts:
       type: "nfs"
@@ -111,6 +107,5 @@ volumes:
 
 networks:
   default:
-    driver: overlay
-    external:
-      name: proxy
+    name: proxy
+    external: true

@@ -1,0 +1,116 @@
+version: "3.3"
+
+services:
+  traefik:
+    image: traefik
+    env_file: .env
+    command:
+      - --api
+      - --api.dashboard
+      ## providers
+      - --providers.docker
+      - --providers.docker.network=proxy
+      - --providers.docker.exposedbydefault=false
+      - --providers.docker.swarmmode
+      - --providers.file.directory=/data
+      ## entrypoints
+      - --entrypoints.web.address=:80
+      - --entrypoints.web.http.redirections.entryPoint.to=websecure
+      - --entrypoints.web.http.redirections.entryPoint.scheme=https
+      - --entrypoints.web.http.redirections.entrypoint.permanent
+      - --entrypoints.websecure.address=:443
+      - --entrypoints.websecure.http.tls.certResolver=letsencrypt
+      ## certificatesresolvers
+      - --certificatesresolvers.letsencrypt.acme.httpchallenge
+      - --certificatesresolvers.letsencrypt.acme.email=$EMAIL
+      - --certificatesresolvers.letsencrypt.acme.storage=/data/acme.json
+      - --certificatesresolvers.letsencrypt.acme.httpchallenge.entrypoint=web
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - data:/data
+    networks:
+      - proxy
+    ports:
+      - target: 80
+        published: 80
+        mode: host
+      - target: 443
+        published: 443
+        mode: host
+    deploy:
+      placement:
+        constraints:
+          - node.labels.traefik == true
+      labels:
+        ## traefik WebUI
+        - traefik.enable=true
+        - traefik.http.routers.api.service=api@internal
+        - traefik.http.routers.api.rule=Host(`traefik.$DOMAIN`)
+        - traefik.http.services.api.loadbalancer.server.port=8080
+
+  auth:
+    # 
+    # Multi-arch fork of thomseddon/traefik-forward-auth:2.2.0-arm
+    image: npawelek/traefik-forward-auth
+    command:
+      - --log-level=warn
+      - --log-format=text
+      - --auth-host=auth.$DOMAIN
+      - --cookie-domain=$DOMAIN
+      - --default-action=auth
+      - --default-provider=google
+      - --url-path=/_oauth
+      - --whitelist=$EMAIL,$WHITELIST
+    secrets:
+      - source: traefik_auth
+        target: /auth
+    environment:
+      - CONFIG=/auth
+    networks:
+      - proxy
+    deploy:
+      placement:
+        constraints:
+          - node.labels.traefik == true
+      labels:
+        - traefik.enable=true
+        - traefik.http.routers.auth.rule=Host(`auth.$DOMAIN`)
+        - traefik.http.routers.auth.middlewares=auth
+        - traefik.http.services.auth.loadbalancer.server.port=4181
+        - traefik.http.middlewares.auth.forwardauth.address=http://auth:4181
+        - traefik.http.middlewares.auth.forwardauth.trustForwardHeader=true
+        - traefik.http.middlewares.auth.forwardauth.authResponseHeaders=X-Forwarded-User
+    # Logout: https://auth.${DOMAIN}/_oauth/logout
+
+  whoami:
+    image: traefik/whoami
+    networks:
+      - proxy
+    deploy:
+      placement:
+        constraints:
+          - node.labels.traefik == true
+      labels:
+        - traefik.enable=true
+        - traefik.http.routers.whoami.rule=Host(`whoami.$DOMAIN`)
+        - traefik.http.routers.whoami.middlewares=auth
+
+# configs:
+#   traefik:
+#     external: true
+
+secrets:
+  traefik_auth:
+    external: true
+
+volumes:
+  data:
+    driver: local
+    driver_opts:
+      type: "nfs"
+      o: addr=bifrost,nolock,soft,rw
+      device: ":/mnt/share/docker/traefik"
+
+networks:
+  proxy:
+    external: true

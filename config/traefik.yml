@@ -20,11 +20,6 @@ http:
       entryPoints:
         - websecure
       rule: "Host(`viz.tobyvin.com`)"
-    hathea:
-      service: hathea
-      entryPoints:
-        - websecure
-      rule: "Host(`foundry.tobyvin.com`) && PathPrefix(`/hathea`)"
 
   services:
     bifrost:
@@ -43,7 +38,3 @@ http:
       loadBalancer:
         servers:
           - url: "http://heimdall.asgard:8080"
-    hathea:
-      loadBalancer:
-        servers:
-          - url: "http://hathea:30000"
