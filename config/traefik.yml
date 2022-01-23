@@ -10,6 +10,11 @@ http:
       entryPoints:
         - websecure
       rule: "Host(`pihole.tobyvin.com`)"
+    octoprint:
+      service: octoprint
+      entryPoints:
+        - websecure
+      rule: "Host(`octoprint.tobyvin.com`)"
     portainer:
       service: portainer
       entryPoints:
@@ -30,6 +35,10 @@ http:
       loadBalancer:
         servers:
           - url: "http://pi.hole"
+    octoprint:
+      loadBalancer:
+        servers:
+          - url: "http://octoprint:80"
     portainer:
       loadBalancer:
         servers:
